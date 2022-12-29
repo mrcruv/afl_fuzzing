@@ -1,0 +1,2 @@
+ImageMagick: 6.5.4-10 (https://imagemagick.org/archive/releases/)
+AFL: 2.52b (https://lcamtuf.coredump.cx/afl/releases/)
