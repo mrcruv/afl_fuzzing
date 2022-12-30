@@ -1,0 +1,75 @@
+\section{Introduction to testing and fuzzing}
+\label{sec:intro}
+
+\subsection{Testing}
+Software testing is a fundamental part of any \textit{SDLC} (Software Development Life Cycle) and it consists in examining the artifacts and the behavior of the software (under test) by validation and verification.
+
+There exist different levels and techniques of software testing:
+\begin{itemize}[itemsep=1pt]
+    \item \textsc{scenario testing} - to ensure that requirements are complete and consistent (e.g., analysing abuse and misuse cases);
+    \item \textsc{specification testing} - to prove the specfication is complete and correct (e.g., through a formal proof or symbolic execution);
+    \item \textsc{in-line testing} - to verify invariants, rules and that the internal state of the software is allowed by the security policies, expected and self-consistent (e.g., using assertions);
+    \item \textsc{unit testing} - to locally test software units, modules and components;
+    \item \textsc{human interaction testing}: to ensure the \textit{UI} (User Interface) and error messages are properly usable (e.g., analysing \textit{UI} abuse cases);
+    \item \textsc{integration testing} - to test logically integrated software units, modules and components as a combined entity;
+    \item \textsc{final testing} - to run test cases against the entire project (e.g., injecting random input);
+    \item \textsc{acceptance testing} - to determine whether the requirements of the specification and customer contract are met.
+\end{itemize}
+
+In general, testing does one of the following:
+\begin{itemize}[itemsep=1pt]
+    \item it looks at correct or wanted behaviour for sensible input or some input on borderline conditions (i.e., normal testing);
+    \item it looks for wrong or unwanted behaviour for \textit{bizarre} input (i.e., security testing).
+\end{itemize}
+Since a normal use of the system is more likely to reveal functional problems than security problems, users complain about the former ones while malicious users never complain about the latter ones.
+
+\subsection{Fuzz testing}
+Fuzzing, also known as fuzz testing, was proposed by Barton Miller\parencite{Miller} at the University of Wisconsin in 1988.
+Basically, fuzz testing consists of running the software application to test with random input, identifying the eventual crashes and correlating the input that caused the crashes: it is an effective technique for automated security testing.
+The basic idea is to see whether the application tested crashes with semi-automatically generate random input.
+
+Initially, fuzzing generated very long input (to make it likely that buffer overruns cross segmentation boundaries) to see whether the system crashes with segmentation fault. Other typical input that can be used for fuzzing could be:
+\begin{itemize}[itemsep=1pt]
+    \item long strings;
+    \item empty string;
+    \item maximum and minimum integer values;
+    \item zero and negative integer values;
+    \item null values;
+    \item newline, \textit{EOF} (End Of File) and format string characters;
+    \item semicolons, slashes, backslashes, single quotes, double quotes;
+    \item application specific keywords (e.g., \textit{DROP TABLE} for \textit{SQL}).
+\end{itemize}
+
+Nowadays, there have been developed several kind of fuzzing tools which use \textit{smarter} techniques to generate input:
+\begin{itemize}[itemsep=1pt]
+    \item (blackbox) mutation-based fuzzers, in which random mutations are applied to existing valid input;
+    \item (blackbox) generation-based (also known as grammar-based fuzzers), in which input is generated from some knowledge of format or protocol (e.g., grammar defining legal input, data format specifications);
+    \item (greybox) evolutionary fuzzers, that perform mutations using a genetic algorithm;
+    \item whitebox fuzzers, that analyze the code to determine interesting input (e.g., using symbolic execution).
+\end{itemize}
+
+Tha main weaknesses of generation-based and mutation-based fuzzers are that a huge amount of work is needed to set up the fuzzers and the chance that random changes in input hit interesting cases is small, respectively.
+
+Thus, an evolutionary approach overcomes these downsides: the basic idea is to learn interesting mutations based on measuring code coverage (i.e., if a mutation of the input triggers a new execution path through the code, then it is an interesting mutation and it is kept else it is discarded).
+
+One of these evolutionary tools will be described in the following subsection.
+
+\subsection{A fuzz testing tool: \textit{AFL}}
+\textit{AFL}\parencite{AFL} (American Fuzzy Lop) is a security-oriented fuzzer that employs a novel type of compile-time instrumentation and genetic algorithms to automatically discover clean, interesting test cases that trigger new internal states in the targeted binary.
+
+In particular, the mutation strategies used include the following\parencite{AFL_status}.
+\begin{itemize}[itemsep=1pt]
+    \item \textit{bitflip L/S} - deterministic bit flips: \textit{L} bits are toggled at any given time, walking the input file with \textit{S}-bit increment (the current \textit{L/S} variants are: 1/1, 2/1, 4/1, 8/8, 16/8, 32/8).
+    \item \textit{arith L/8} - deterministic arithmetics: the fuzzer tries to subtract or add small integers to 8-, 16-, and 32-bit values (the stepover is always 8 bits).
+    \item \textit{interest L/8} - deterministic value overwrite: the fuzzer has a list of known \textit{interesting} 8-, 16-, and 32-bit values to try (the stepover is 8 bits).
+    \item \textit{extras} - deterministic injection of dictionary terms: this can be shown as "user" or "auto", depending on whether the fuzzer is using a user-supplied dictionary or an auto-created one.
+    \item \textit{havoc} - a sort-of-fixed-length cycle with stacked random tweaks: the operations attempted during this stage include bit flips, overwrites with random and \textit{interesting} integers, block deletion, block duplication, plus assorted dictionary-related operations (if a dictionary is supplied in the first place).
+    \item \textit{splice} - a last-resort strategy that kicks in after the first full queue cycle with no new paths: it is equivalent to \textit{havoc}, except that it first splices together two random inputs from the queue at some arbitrarily selected midpoint.
+\end{itemize}
+
+Please check the technical "whitepaper" for \textit{afl-fuzz}\parencite{AFL_tech}, to explore in-depth technical details and benchmarks.
+
+\subsection{Project repository}
+The project track carried out, the results collected, the plots within this report and this latter itself, are collected in an online \textit{GitHub}\parencite{github} repository.
+
+For further information please visit the following link: \href{https://github.com/mrcruv/afl_fuzzing}{https://github.com/mrcruv/afl\_fuzzing}.

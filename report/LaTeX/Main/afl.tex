@@ -1,0 +1,95 @@
+\section{A case study: \textit{ImageMagick}}
+\label{sec:afl}
+\textit{ImageMagick}\parencite{IM} is a free and open-source software suite for displaying, converting, and editing raster image and vector image files that can read and write over two hundred image file formats, and can support a wide range of image manipulation operations.
+
+\textit{ImageMagick} is written in \textit{C}, it is available for a wide range of operating systems, including \textit{Linux}, \textit{macOS}, and \textit{Windows} and it can be used as a standalone application, or as a library that can be integrated into other software programs.
+
+The testing phases of the \textit{ImageMagick-6.5.4.-10}\parencite{IM6} (legacy) release, using \textit{AFL}, are reported in the following subsections.
+
+\subsection{Program instrumentation for use with \textit{AFL}}
+Since the source code of the major \textit{ImageMagick} releases are available on the \textit{ImageMagick}'s official site (for further information please visit the following link: \href{https://imagemagick.org/archive/releases/}{https://imagemagick.org/archive/releases/}), the target program is compiled as follows\parencite{AFL_guide}\parencite{AFL_readme}.
+\begin{lstlisting}
+$ CC=<path_to_afl_gcc> CXX=<path_to_afl_g++> ./configure --disable-shared
+$ AFL_HARDEN=1 AFL_INST_RATIO=100 make clean all
+$ make install
+\end{lstlisting}
+To link the executable that reads data from a file and passes it to the \textit{ImageMagick} library against this latter itself (or to make sure that the correct .so file is loaded at runtime), a static build is performed (i.e., \textit{--disable-shared} flag).
+Moreover, \textit{AFL\_HARDEN} is set to 1 (i.e., \textit{AFL\_HARDEN=1}) in order to enable code hardening options that make it easier to detect simple memory bugs\parencite{AFL_readme}\parencite{AFL_env} and \textit{AFL\_INST\_RATIO}\parencite{AFL_env} is set to 100 (i.e., \textit{AFL\_INST\_RATIO=100}) for allowing the generation of instrumentation for 100\% of branches.
+
+
+\subsection{Initial test cases choice}
+The fuzzer requires an initial test cases corpus that contains a representative sample of the input data normally expected by the targeted application in order to operate correctly.
+The two basic rules to follow are the following\parencite{AFL_readme}:
+\begin{enumerate}[itemsep=1pt]
+    \item keep the files small, for a matter of performance (under 1 kB is ideal, although not strictly necessary);
+    \item use multiple tes cases only if they are functionally different from each other.
+\end{enumerate}
+
+The \textit{afl-cmin} utility is used to identify a subset of functionally distinct test cases that exercise different code paths in the target binaries, as follows.
+\begin{lstlisting}
+$ afl-cmin -i <testcase_dir> -o <new_testcase_dir> -- <tested_program> [...]
+\end{lstlisting}
+
+Indeed, a subset of \textit{PNG} images is drawn out from the \textit{png} directory inside the \textit{afl\_testcases} directory\parencite{AFL_testcases}, to arrange an initial test cases corpus.
+More precisely, the \textit{afl-cmin} utility is used on the images located on the \textit{afl\_testcases/png/full/images} path.
+
+Please note that the \textit{afl-tmin} utility may be used to minimize each test case in a test cases corpus, as follows.
+\begin{lstlisting}
+$ afl-tmin -i <testcase> -o <new_testcase> -- <tested_program> [...]
+\end{lstlisting}
+
+\subsection{Fuzzing binaries}
+The fuzzing process itself is carried out by the \textit{afl-fuzz} utility, which requires a read-only directory with initial test cases, a separate directory to store its findings and a path to the binary to test.
+
+For target binaries that accept input directly from \textit{stdin}, the usual syntax is as follows\parencite{AFL_guide}\parencite{AFL_readme}.
+\begin{lstlisting}
+$ afl-fuzz -i <testcase_dir> -o <findings_dir> -- <tested_program> [...]
+\end{lstlisting}
+
+For programs that take input from a file, marking the location in the target's command line where the input file name should be placed is needed, using "@@", as follows\parencite{AFL_guide}\parencite{AFL_readme}.
+\begin{lstlisting}
+$  afl-fuzz -i <testcase_dir> -o <findings_dir> -- <tested_program> @@ [...]
+\end{lstlisting}
+Please note that the flags \textit{-t} and \textit{-m} may be used to override the default timeout and memory limit for the executed process, if needed.
+
+Since the \textit{C} function tested in this case study takes input from files, the latter syntax is used.
+
+\subsection{Parallelize fuzzing}
+In order to fully exploit the hardware (since a multi-core system is used), fuzzing parallelization is necessary: every instance of \textit{afl-fuzz} takes up roughly one core\parencite{AFL_readme}.
+
+For parallelizing a single job across multiple cores on a local system, \textit{N} instances of \textit{afl-fuzz} should be ran, as follows\parencite{AFL_par}.
+\begin{lstlisting}
+$ afl-fuzz -i <testcase_dir> -o <sync_dir> -M fuzzer01 -- <tested_program> [...]
+$ afl-fuzz -i <testcase_dir> -o <sync_dir> -S fuzzer02 -- <tested_program> [...]
+$ ...
+$ afl-fuzz -i <testcase_dir> -o <sync_dir> -S fuzzer0N -- <tested_program> [...]
+\end{lstlisting}
+The first fuzzer is the \textit{master} instance, the following ones are \textit{secondary} instances.
+The output directory is shared by all the instances of \textit{afl-fuzz} and each fuzzer will keep its state in a separate subdirectory.
+The difference between the \textit{-M} and \textit{-S} modes is that the \textit{master} instance will still perform deterministic checks, while the \textit{secondary} instances will proceed straight to random tweaks.
+Please note that running multiple \textit{master} instances is usually wasteful, although there is an
+experimental support for parallelizing the deterministic checks.
+
+Monitoring the progress of the jobs from the command line is possible, using the \textit{afl-whatsup} tool as follows\parencite{AFL_par}. 
+\begin{lstlisting}
+$ afl-whatsup <sync_dir>
+\end{lstlisting}
+
+Furthermore, graphs for any active fuzzing task can be generated using the \textit{afl-plot} utility, as follows\parencite{AFL_readme}.
+\begin{lstlisting}
+$ afl-plot <state_dir> <output_dir>
+\end{lstlisting}
+
+\subsection{Output interpretation}
+The fuzzing process will create and update, in real time, three subdirectories (actually, for each fuzzer instance) within the output directory\parencite{AFL_readme}:
+\begin{itemize}[itemsep=1.5pt]
+    \item queue: test cases for every distinctive execution path, plus all the starting files given by the user;
+    \item crashes: \textit{unique} test cases that cause the tested program to receive a fatal signal (e.g., \textit{SIGSEGV}, \textit{SIGILL}, \textit{SIGABRT}), grouped by the received signal itself;
+    \item hangs: \textit{unique} test cases that cause the tested program to time out.
+\end{itemize}
+Any existing output directory can be also used to resume aborted jobs, as follows\parencite{AFL_readme}.
+\begin{lstlisting}
+$ afl-fuzz -i- -o <findings_dir> -- <tested_program> [...]
+\end{lstlisting}
+
+Please note that crashes and hangs are considered \textit{unique} if the associated execution paths involve any state transition not seen in previously-recorded faults.

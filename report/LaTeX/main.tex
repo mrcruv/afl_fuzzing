@@ -1,0 +1,68 @@
+\documentclass{article}
+%% Useful packages
+\usepackage[utf8]{inputenc}
+\usepackage[a4paper,left=1.75cm,right=1.75cm,top=2.5cm,bottom=2.5cm]{geometry}
+\usepackage{crop,graphicx,amsmath,array,color,amssymb,fancyhdr,lineno}
+\usepackage{flushend,stfloats,amsthm,chngpage,times,,lipsum,lastpage} 
+\usepackage{calc,listings,color,wrapfig,tabularx,longtable,enumitem}
+\usepackage[style=numeric-comp,backend=biber,sorting=none]{biblatex}
+\lstset{ language=bash }
+\newcommand{\omissis}{[\ldots]\hspace{3pt}}
+\usepackage[bottom]{footmisc}
+\addbibresource{Refs.bib}
+\usepackage{float}
+\usepackage{enumitem}
+\usepackage[table]{xcolor}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,     
+    urlcolor=blue,
+    citecolor=purple
+    }
+\urlstyle{same}
+%%%%%%%%%%%%   Header and Footer  %%%%%%%%%%%%%
+\pagestyle{fancy}
+\fancypagestyle{plain}{%
+  \renewcommand{\headrulewidth}{0pt}%
+  \fancyhf{}%
+}
+
+\title{%
+  Project 3 \\
+  \large Fuzz testing of an image manipulation software using \textit{AFL}}
+\author{Marco Ruvolo}
+
+\begin{document}
+\input{Title/title.tex}
+
+\sffamily
+
+\fancyhf{}
+\fancyhead[L]{}
+\fancyhead[R]{}
+\fancyfoot[R]{ \bf\thepage\ \rm }%
+
+\newpage
+\tableofcontents
+\listoffigures
+\listoftables
+\pagebreak
+
+\input{Main/introduction.tex}
+\pagebreak
+
+\input{Main/afl.tex}
+\pagebreak
+
+\input{Main/results.tex}
+\pagebreak
+
+\printbibliography[heading=bibnumbered]
+\pagebreak
+
+%\input{Appendix/Appendix.tex}
+\pagebreak
+
+\end{document}
